@@ -1,8 +1,9 @@
 #include "doctest.h"
 
 #include <iostream>
+#include <sstream>
 
-
+#include "io.hpp"
 #include "uni/space.hpp"
 
 using namespace NP;
@@ -219,4 +220,56 @@ TEST_CASE("[IIP] P-RM idle time")
 		CHECK(space.is_schedulable());
 	}
 
+}
+
+const std::string cw_edf_unschedulable_file =
+	"Task ID,Job ID,Arrival min,Arrival max,Cost min,Cost max,Deadline,Priority\n"
+	"1,1,0,0,0,60,200,200\n"
+	"1,2,200,200,0,60,400,400\n"
+	"1,3,400,400,0,60,600,600\n"
+	"1,4,600,600,0,60,800,800\n"
+	"1,5,800,800,0,60,1000,1000\n"
+	"1,6,1000,1000,0,60,1200,1200\n"
+	"1,7,1200,1200,0,60,1400,1400\n"
+	"1,8,1400,1400,0,60,1600,1600\n"
+	"1,9,1600,1600,0,60,1800,1800\n"
+	"1,10,1800,1800,0,60,2000,2000\n"
+	"2,1,0,0,0,171,2000,2000\n"
+	"3,1,0,0,0,6,200,200\n"
+	"3,2,200,200,0,6,400,400\n"
+	"3,3,400,400,0,6,600,600\n"
+	"3,4,600,600,0,6,800,800\n"
+	"3,5,800,800,0,6,1000,1000\n"
+	"3,6,1000,1000,0,6,1200,1200\n"
+	"3,7,1200,1200,0,6,1400,1400\n"
+	"3,8,1400,1400,0,6,1600,1600\n"
+	"3,9,1600,1600,0,6,1800,1800\n"
+	"3,10,1800,1800,0,6,2000,2000\n"
+	"4,1,0,0,0,96,200,200\n"
+	"4,2,200,200,0,96,400,400\n"
+	"4,3,400,400,0,96,600,600\n"
+	"4,4,600,600,0,96,800,800\n"
+	"4,5,800,800,0,96,1000,1000\n"
+	"4,6,1000,1000,0,96,1200,1200\n"
+	"4,7,1200,1200,0,96,1400,1400\n"
+	"4,8,1400,1400,0,96,1600,1600\n"
+	"4,9,1600,1600,0,96,1800,1800\n"
+	"4,10,1800,1800,0,96,2000,2000\n"
+	"5,1,0,0,0,1,1000,1000\n"
+	"5,2,1000,1000,0,1,2000,2000\n";
+
+TEST_CASE("[IIP] CW-EDF infeasible example") {
+	auto in = std::istringstream(cw_edf_unschedulable_file);
+
+	Scheduling_problem<dtime_t> prob{parse_file<dtime_t>(in)};
+
+	Analysis_options opts;
+
+	opts.be_naive = true;
+	auto nspace = Uniproc::State_space<dtime_t, Uniproc::Critical_window_IIP<dtime_t>>::explore(prob, opts);
+	CHECK(!nspace.is_schedulable());
+
+	opts.be_naive = false;
+	auto space = Uniproc::State_space<dtime_t, Uniproc::Critical_window_IIP<dtime_t>>::explore(prob, opts);
+	CHECK(!space.is_schedulable());
 }

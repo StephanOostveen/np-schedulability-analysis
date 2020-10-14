@@ -323,17 +323,21 @@ namespace NP {
 					if (!incomplete(already_scheduled, j))
 						continue;
 
+					auto latest_iip_check = std::max(j.latest_arrival(),
+					                                 s.latest_finish_time());
+
 					// If the job is not IIP-eligible when it is certainly
-					// released, then there exists a schedule where it doesn't
-					// count, so skip it.
-					if (!iip_eligible(s, j, j.latest_arrival()))
+					// released and able to run, then there exists a schedule
+					// where it doesn't count, so skip it.
+					if (!iip_eligible(s, j, latest_iip_check))
 						continue;
 
-					// It must be priority-eligible when released, too.
-					// Relevant only if we have an IIP, otherwise the job is
-					// trivially priority-eligible.
+					// It must be priority-eligible when released and
+					// able to run, too. Relevant only if we have an
+					// IIP, otherwise the job is trivially
+					// priority-eligible.
 					if (iip.can_block &&
-					    !priority_eligible(s, j, j.latest_arrival()))
+					    !priority_eligible(s, j, latest_iip_check))
 						continue;
 
 					// great, this job fits the bill
@@ -410,8 +414,6 @@ namespace NP {
 				DM("    ? " << __FUNCTION__ << " at " << at << ": "
 				   << reference_job << std::endl);
 
-				auto rel_min = s.earliest_job_release();
-
 				// consider all possibly pending jobs
 				const Job<Time>* jp;
 				foreach_certainly_pending_job_until(s, jp, at) {
@@ -419,6 +421,9 @@ namespace NP {
 					DM("        - considering " << j << std::endl);
 					// skip reference job
 					if (&j == &reference_job)
+						continue;
+					// ignore jobs that the IIP may choose not to schedule
+					if (iip.can_block && !iip_eligible(s, j, s.latest_finish_time()))
 						continue;
 					// ignore jobs that aren't yet ready
 					if (!ready(s, j))
@@ -473,15 +478,15 @@ namespace NP {
 			// returns true if there is certainly some pending job in this state
 			bool exists_certainly_pending_job(const State &s)
 			{
-				auto ts_min = s.earliest_finish_time();
+				auto t_latest = s.latest_finish_time();
 
 				const Job<Time>* jp;
-				foreach_certainly_pending_job_until(s, jp, ts_min) {
+				foreach_certainly_pending_job_until(s, jp, t_latest) {
 					const Job<Time>& j = *jp;
-					if ((!iip.can_block || priority_eligible(s, j, ts_min))
-					    && iip_eligible(s, j, ts_min)) {
+					if ((!iip.can_block || priority_eligible(s, j, t_latest))
+					    && iip_eligible(s, j, t_latest)) {
 					    DM("\t\t\t\tcertainly released by "
-					       << ts_min << ":" << j << std::endl);
+					       << t_latest << ":" << j << std::endl);
 						return true;
 					}
 				}
